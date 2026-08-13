@@ -30,6 +30,9 @@ docs
 context
 !layers/apps/context
 
+# Feature worktrees
+worktrees
+
 # Test artifacts
 test-results/
 playwright-report/
