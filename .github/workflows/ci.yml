@@ -48,9 +48,11 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
-      # Email-layer tests read captured mail over MailHog's HTTP API.
-      mailhog:
-        image: mailhog/mailhog:latest
+      # Email-layer tests read captured mail over Mailpit's v1 HTTP API, and the
+      # email backend posts to SMTP on 1025. MailHog speaks a different API and
+      # makes every mail assertion 404 — see layers/core/tests/helpers/mailhog.ts.
+      mailpit:
+        image: axllent/mailpit:latest
         ports:
           - 1025:1025
           - 8025:8025
@@ -58,6 +60,13 @@ jobs:
       TEST_DATABASE_URL: postgresql://host_admin:test@localhost:5432/go_saas_test
       TEST_APP_DATABASE_URL: postgresql://app_user:test@localhost:5432/go_saas_test
       TEST_MAILHOG_URL: http://localhost:8025
+      S3_ENDPOINT: http://127.0.0.1:9000
+      S3_REGION: us-east-1
+      S3_ACCESS_KEY_ID: minioadmin
+      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_BUCKET_NAME: nuxtinator-test
+      S3_PUBLIC_BUCKET_NAME: nuxtinator-test
+      S3_PUBLIC_BASE_URL: http://127.0.0.1:9000/nuxtinator-test
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -69,6 +78,8 @@ jobs:
         env:
           PGPASSWORD: postgres
           TEST_DB_SUPERUSER: postgres
+      - name: Start object storage
+        run: ./scripts/setup-test-s3.sh
       - run: bun run test
         working-directory: dev
 
@@ -88,8 +99,8 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
-      mailhog:
-        image: mailhog/mailhog:latest
+      mailpit:
+        image: axllent/mailpit:latest
         ports:
           - 1025:1025
           - 8025:8025
@@ -98,6 +109,13 @@ jobs:
       TEST_APP_DATABASE_URL: postgresql://app_user:test@localhost:5432/go_saas_test
       TEST_MAILHOG_URL: http://localhost:8025
       TEST_BASE_URL: http://localhost:2090
+      S3_ENDPOINT: http://127.0.0.1:9000
+      S3_REGION: us-east-1
+      S3_ACCESS_KEY_ID: minioadmin
+      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_BUCKET_NAME: nuxtinator-test
+      S3_PUBLIC_BUCKET_NAME: nuxtinator-test
+      S3_PUBLIC_BASE_URL: http://127.0.0.1:9000/nuxtinator-test
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -109,6 +127,8 @@ jobs:
         env:
           PGPASSWORD: postgres
           TEST_DB_SUPERUSER: postgres
+      - name: Start object storage
+        run: ./scripts/setup-test-s3.sh
       - name: Install Playwright browsers
         run: bunx playwright install --with-deps chromium
         working-directory: dev
