@@ -6,6 +6,7 @@
 // assert the app's behavior via real HTTP through $fetch (which goes through
 // the Nuxt server's app_user-roled `db`).
 import postgres from 'postgres'
+import { fetch as testFetch } from '@nuxt/test-utils/e2e'
 import { createPgPool } from '../../server/utils/db-connection'
 
 let _hostAdmin: ReturnType<typeof postgres> | null = null
@@ -35,6 +36,25 @@ export function getAppUserDb(): ReturnType<typeof postgres> {
   }
   _appUser = buildPool(url)
   return _appUser
+}
+
+// Gate a global setup on the boot-time migration run.
+//
+// `hooks.beforeAll()` returns as soon as the server's port accepts a TCP
+// connection, which happens well before core's migrations plugin has finished.
+// Against a database that already holds the schema that gap is invisible;
+// against a fresh one every global setup's cleanup queries a table that does
+// not exist yet. Core's `00.await-migrations` middleware holds each request
+// until migrations settle, so a single round-trip is the signal — no polling,
+// no sleep, and a failed migration surfaces here instead of as a schema error
+// inside the first test.
+export async function waitForMigrations(): Promise<void> {
+  const res = await testFetch('/')
+  if (res.status >= 500) {
+    throw new Error(
+      `Server failed to become ready (HTTP ${res.status}) — boot migrations likely failed. Check the server output above.`
+    )
+  }
 }
 
 export async function closeTestDatabases(): Promise<void> {

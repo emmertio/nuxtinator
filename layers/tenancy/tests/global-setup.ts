@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 import {
   getHostAdminDb,
+  waitForMigrations,
   closeTestDatabases,
   cleanupTenancyTestData,
   cleanupCoreTestData,
@@ -47,6 +48,9 @@ export async function setup() {
 
   await hooks.beforeAll()
   exposeContextToEnv()
+
+  // Boot migrations run detached from the listener — hold here until they land.
+  await waitForMigrations()
 
   const admin = getHostAdminDb()
   await cleanupTenancyTestData(admin)

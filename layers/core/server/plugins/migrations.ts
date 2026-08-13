@@ -69,7 +69,27 @@ class LayeredMigrationProvider implements MigrationProvider {
   }
 }
 
-export default defineNitroPlugin(async () => {
+// Nitro calls plugins without awaiting them, so the HTTP listener opens while
+// this one is still applying migrations. On a database that already carries the
+// schema nobody notices; on a fresh one (CI, a new worktree's test DB) the first
+// requests hit tables that don't exist yet. The plugin therefore publishes its
+// own completion as a promise, and `server/middleware/00.await-migrations.ts`
+// holds every request until it settles.
+let migrationsReady: Promise<void> = Promise.resolve()
+
+export function whenMigrationsComplete(): Promise<void> {
+  return migrationsReady
+}
+
+export default defineNitroPlugin(() => {
+  migrationsReady = runMigrations()
+  // The middleware is the only consumer and it re-throws for the caller that
+  // needs it. Attach a no-op catch so a failure here isn't also an unhandled
+  // rejection that tears the process down before any request can report it.
+  migrationsReady.catch(() => {})
+})
+
+async function runMigrations(): Promise<void> {
   const config = useRuntimeConfig()
   const databaseUrl = config.databaseUrl || process.env.DATABASE_URL
   if (!databaseUrl) {
@@ -123,4 +143,4 @@ export default defineNitroPlugin(async () => {
   }
 
   console.log('Migrations complete')
-})
+}
