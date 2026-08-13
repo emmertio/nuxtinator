@@ -268,6 +268,7 @@ const gridStyle = computed(() => ({
       <template v-for="project in projects" :key="project.id">
         <template v-if="!isProjectExpanded(project) && defaultLaneOf(project.id)">
           <div
+            data-testid="project-row"
             class="border-b border-r border-(--ui-border) flex min-w-0 group/projrow"
             :class="[
               fillHeight
@@ -365,6 +366,7 @@ const gridStyle = computed(() => ({
         <template v-else>
           <template v-for="(lane, idx) in lanesOf(project.id)" :key="lane.id">
             <div
+              :data-testid="idx === 0 ? 'project-row' : undefined"
               class="border-b border-r border-(--ui-border) flex min-w-0"
               :class="[
                 fillHeight
