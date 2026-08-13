@@ -1,5 +1,6 @@
 import { db as adminDb } from '#core/server/utils/database'
 import { getRegisteredApps } from '../utils/app-registry'
+import { whenMigrationsComplete } from './migrations'
 
 // Seeds the global `apps` catalog with one row per registered app layer.
 //
@@ -28,8 +29,14 @@ import { getRegisteredApps } from '../utils/app-registry'
 // yet) and we'd silently seed nothing. Hooking `request` with `hookOnce`
 // fires exactly once on the first incoming HTTP request — by which time
 // every plugin has finished initialising and the registry is populated.
+//
+// The `request` hook runs ahead of server middleware, so it can't rely on
+// `00.await-migrations` to have gated it; on a fresh database the `apps` table
+// would not exist yet. It waits on the same promise directly.
 export default defineNitroPlugin((nitroApp) => {
   nitroApp.hooks.hookOnce('request', async () => {
+    await whenMigrationsComplete()
+
     const apps = getRegisteredApps()
     if (apps.length === 0) return
 
@@ -44,7 +51,11 @@ export default defineNitroPlugin((nitroApp) => {
           .onConflict(oc => oc.column('id').doNothing())
           .execute()
       } catch (err) {
-        console.warn(`[seed-apps-catalog] failed to seed app "${app.id}":`, err)
+        // Loud, and at error level: a swallowed warning here is what kept the
+        // pre-migration race invisible for as long as it was. The loop still
+        // continues so one bad app can't cost the rest their catalog row, and
+        // the insert is idempotent, so the next boot retries.
+        console.error(`[seed-apps-catalog] failed to seed app "${app.id}":`, err)
       }
     }
     console.log(`[seed-apps-catalog] ensured ${apps.length} apps in catalog: ${apps.map(a => a.id).join(', ')}`)
