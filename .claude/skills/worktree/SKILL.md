@@ -32,15 +32,25 @@ look like code bugs.
    `git rev-parse origin/master`. If the parent checkout is dirty, say so — those changes
    belong to someone. Never stash or discard them to make a pull work.
 
-3. **Claim a port slot.** Slot `N` = the lowest integer ≥ 1 not already used by another
-   worktree (check the other worktrees' `dev/.env`).
+3. **Derive the port slot — don't search for a free one.** Slot `N = (issue number % 8) + 1`,
+   or for ad-hoc work, any free `N` in 1–8.
+
+   **Deriving beats scanning.** "Lowest slot not currently in use" looks fine and races:
+   two agents starting at once both read the same state, both see slot 1 free, and both
+   take it — same dev port, same test database, cross-contaminated results that reproduce
+   nowhere. A slot derived from the issue number needs no coordination at all.
 
    | | Parent | Slot 1 | Slot 2 |
    | --- | --- | --- | --- |
    | Dev server (`NUXT_PORT`) | 2080 | 2180 | 2280 |
    | Playwright (`TEST_BASE_URL`) | 2090 | 2190 | 2290 |
+   | Test database | `go_saas_test` | `go_saas_test_1` | `go_saas_test_2` |
 
    Formula: dev `2080 + N*100`, e2e `2090 + N*100`. A block of 100 per slot leaves room.
+
+   Two open issues can land on the same slot (they're congruent mod 8). Check whether
+   another worktree already has it (`grep NUXT_PORT worktrees/*/dev/.env`); if so, take
+   the next free slot. That check is a fallback, not the primary mechanism.
 
 4. **Copy and rewrite the env.** `.env` is gitignored, so a fresh worktree has none and
    nothing runs. Copy the parent's, then rewrite everything that carries a port or a
@@ -66,8 +76,15 @@ look like code bugs.
    - **Test DB** — `bun run test:e2e` truncates and seeds. Two worktrees testing against
      one database produce failures that reproduce nowhere.
 
-   Provision with `bun run test:db` (`scripts/setup-test-db.sh`) pointed at a
-   slot-suffixed name, e.g. `go_saas_test_<N>`.
+   `scripts/setup-test-db.sh` reads `TEST_DB_NAME`, so provisioning a slot's own database
+   is one command (it's idempotent, and the roles are shared):
+
+   ```bash
+   TEST_DB_NAME=go_saas_test_<N> ./scripts/setup-test-db.sh
+   ```
+
+   It prints the two connection strings to paste into the worktree's `.env`. Give the dev
+   DB the same treatment — `createdb apps_<N>` — and point `DATABASE_URL` at it.
 
 6. **`bun install` in the worktree** — `node_modules` is per-checkout, and this is a bun
    workspace, so nothing resolves until it's run there.

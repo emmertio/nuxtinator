@@ -1,0 +1,122 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JWT_SECRET: ci-test-secret-not-a-real-key
+  NUXT_TENANT_FLOW_SECRET: ci-test-flow-secret-not-a-real-key
+
+jobs:
+  # Fast feedback: no services needed, fails in ~2 min if the branch is malformed.
+  static:
+    name: Lint & types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: bun install --frozen-lockfile
+      - name: Verify layer wiring
+        run: bun run verify-layers
+        working-directory: dev
+      - run: bun run lint
+        working-directory: dev
+      - run: bun run typecheck
+        working-directory: dev
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      # Email-layer tests read captured mail over MailHog's HTTP API.
+      mailhog:
+        image: mailhog/mailhog:latest
+        ports:
+          - 1025:1025
+          - 8025:8025
+    env:
+      TEST_DATABASE_URL: postgresql://host_admin:test@localhost:5432/go_saas_test
+      TEST_APP_DATABASE_URL: postgresql://app_user:test@localhost:5432/go_saas_test
+      TEST_MAILHOG_URL: http://localhost:8025
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: bun install --frozen-lockfile
+      - name: Provision test database
+        run: ./scripts/setup-test-db.sh
+        env:
+          PGPASSWORD: postgres
+          TEST_DB_SUPERUSER: postgres
+      - run: bun run test
+        working-directory: dev
+
+  e2e:
+    name: E2E
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      mailhog:
+        image: mailhog/mailhog:latest
+        ports:
+          - 1025:1025
+          - 8025:8025
+    env:
+      TEST_DATABASE_URL: postgresql://host_admin:test@localhost:5432/go_saas_test
+      TEST_APP_DATABASE_URL: postgresql://app_user:test@localhost:5432/go_saas_test
+      TEST_MAILHOG_URL: http://localhost:8025
+      TEST_BASE_URL: http://localhost:2090
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: bun install --frozen-lockfile
+      - name: Provision test database
+        run: ./scripts/setup-test-db.sh
+        env:
+          PGPASSWORD: postgres
+          TEST_DB_SUPERUSER: postgres
+      - name: Install Playwright browsers
+        run: bunx playwright install --with-deps chromium
+        working-directory: dev
+      - run: bun run test:e2e
+        working-directory: dev
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: dev/playwright-report/
+          retention-days: 7
