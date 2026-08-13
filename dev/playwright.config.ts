@@ -30,9 +30,19 @@ export default defineConfig({
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'html',
   globalSetup: resolve(__dirname, '../tests/e2e/global-setup.ts'),
   globalTeardown: resolve(__dirname, '../tests/e2e/global-teardown.ts'),
+  // The server under test runs `nuxt dev`, which compiles each route the first
+  // time it's visited. On a warm local machine that lands inside Playwright's
+  // 5s default; on a CI runner the first assertion after a `goto` regularly
+  // does not. These are deadlines for a known-slow operation, not slack for a
+  // flaky one — a test that needs more than this is telling you something.
+  timeout: 60_000,
+  expect: { timeout: 15_000 },
   use: {
     baseURL,
-    trace: 'on-first-retry'
+    navigationTimeout: 30_000,
+    // Traces are the only artifact that explains a CI-only failure, and with
+    // retries off there is no second attempt to capture one on.
+    trace: 'retain-on-failure'
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } }

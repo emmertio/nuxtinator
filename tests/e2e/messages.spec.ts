@@ -43,7 +43,9 @@ test('compose + send a markdown message; it renders in the list without reload',
   await page.goto(`/@${org.slug}/messages/${channel.id}`)
 
   // Empty state until we post.
-  await expect(page.locator('text=No messages yet')).toBeVisible({ timeout: 5000 })
+  // First assertion after a navigation — leave it on the config's default,
+  // which allows for the dev server compiling the route on first visit.
+  await expect(page.locator('text=No messages yet')).toBeVisible()
 
   const body = `hello e2e ${randomUUID().slice(0, 6)}`
   // The composer is a custom <textarea> (not a UInput). Use its placeholder
