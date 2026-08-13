@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./nuxt.config.ts"
+    ".": "./nuxt.config.ts",
+    "./normalize": "./server/utils/normalize.ts",
+    "./schema": "./server/database/schema.d.ts"
   },
   "optionalDependencies": {
     "@nuxtinator/core": "*"

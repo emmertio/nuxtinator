@@ -3,13 +3,14 @@ import { sql } from 'kysely'
 import type { Kysely } from 'kysely'
 import type { SeedContext } from '#core/seeds/types'
 import type { InboxConversationsTable, InboxMessagesTable, InboxCommentsTable } from '../server/database/schema'
-// Runtime cross-layer import goes by relative path: seeds run under bun with
-// no Nuxt alias resolution, and the crm layer sits as a sibling both in this
-// monorepo (layers/apps/crm) and in a consumer checkout (_layers/crm), so the
-// path shape holds in both. Using crm's own normalizer keeps seeded channels
-// dedupe-compatible with what the inbound webhook claims later.
-import { normalizeChannelValue } from '../../crm/server/utils/normalize'
-import type { CrmChannelsTable } from '../../crm/server/database/schema'
+// Seeds run under plain bun, with none of Nuxt's alias resolution, so the
+// cross-layer reach for crm goes through crm's package exports rather than
+// `#crm/server` — a bare specifier node resolves the same way whether crm
+// arrives as a workspace symlink, a giget checkout, or a tarball. Using crm's
+// own normalizer keeps seeded channels dedupe-compatible with what the inbound
+// webhook claims later.
+import { normalizeChannelValue } from '@nuxtinator/crm/normalize'
+import type { CrmChannelsTable } from '@nuxtinator/crm/schema'
 
 // Untyped pass-through: tenancy mode adds an `org_id` column at runtime that
 // isn't reflected in this layer's compile-time schema, so we widen the rows
