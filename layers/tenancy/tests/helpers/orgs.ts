@@ -3,7 +3,7 @@
 // tenant tables (the GUC isn't set outside of `defineTenantHandler`'s txn).
 import type postgres from 'postgres'
 import { randomUUID } from 'node:crypto'
-import { createTestUser, getAuthHeaders, type AuthHeaders, type TestUser } from 'layer-core/test-helpers'
+import { createTestUser, getAuthHeaders, type AuthHeaders, type TestUser } from '@nuxtinator/core/test-helpers'
 
 export interface TestOrg {
   id: string

@@ -16,9 +16,9 @@ import {
   createTestOrg,
   addTestMembership,
   type TestOrg
-} from 'layer-tenancy/test-helpers'
+} from '@nuxtinator/tenancy/test-helpers'
 
-export * from 'layer-tenancy/test-helpers'
+export * from '@nuxtinator/tenancy/test-helpers'
 
 // All seeded users / orgs are tagged with `test-list-of-100-` so per-layer
 // cleanup can be aggressive without trampling sibling-layer fixtures.

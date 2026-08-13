@@ -16,9 +16,9 @@ import {
   type AuthHeaders,
   type TestUser,
   type TestOrg
-} from 'layer-tenancy/test-helpers'
+} from '@nuxtinator/tenancy/test-helpers'
 
-export * from 'layer-tenancy/test-helpers'
+export * from '@nuxtinator/tenancy/test-helpers'
 
 // An operator-admin user (users.is_admin) in a fresh org with membership, plus
 // the X-Active-Org opts the AI admin endpoints need. Pass `{ admin: false }` for
