@@ -26,7 +26,7 @@ import {
   cleanupVideosTestData,
   createVideosUser,
   createTestVideo
-} from 'layer-videos/test-helpers'
+} from '@nuxtinator/videos/test-helpers'
 import { loginIntoNewOrg } from './helpers/login'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))

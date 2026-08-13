@@ -30,7 +30,7 @@ import { cleanupTenancyTestData } from '@nuxtinator/tenancy/test-helpers'
 import {
   cleanupListOf100TestData,
   createTestContact
-} from 'layer-list-of-100/test-helpers'
+} from '@nuxtinator/list-of-100/test-helpers'
 import { loginIntoNewOrg } from './helpers/login'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))

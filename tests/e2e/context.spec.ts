@@ -16,7 +16,7 @@ import {
   cleanupContextTestData,
   createTestPortfolio,
   seedTestSection
-} from 'layer-context/test-helpers'
+} from '@nuxtinator/context/test-helpers'
 import { loginIntoNewOrg } from './helpers/login'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))

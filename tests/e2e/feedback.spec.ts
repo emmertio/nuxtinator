@@ -30,7 +30,7 @@ import {
   createTestProject,
   createTestCard,
   getColumnByName
-} from 'layer-feedback/test-helpers'
+} from '@nuxtinator/feedback/test-helpers'
 import { loginIntoNewOrg } from './helpers/login'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
