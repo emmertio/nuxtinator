@@ -22,8 +22,12 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  reporter: process.env.CI ? 'list' : 'html',
+  // No retries anywhere: a test that only passes on the second attempt is
+  // failing, and retrying hides which one. CI gets `list` for readable logs
+  // plus `html` so the uploaded playwright-report artifact actually has
+  // something in it.
+  retries: 0,
+  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'html',
   globalSetup: resolve(__dirname, '../tests/e2e/global-setup.ts'),
   globalTeardown: resolve(__dirname, '../tests/e2e/global-teardown.ts'),
   use: {
