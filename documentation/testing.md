@@ -44,7 +44,8 @@ Two non-negotiables:
 ```
 go-saas/
 ├── scripts/
-│   └── setup-test-db.sh             ← provisions go_saas_test + host_admin / app_user roles
+│   ├── setup-test-db.sh             ← provisions go_saas_test + host_admin / app_user roles
+│   └── setup-test-s3.sh             ← starts MinIO + creates the bucket uploads land in
 ├── dev/
 │   ├── vitest.config.ts             ← one project per layer
 │   ├── playwright.config.ts         ← self-starts Nuxt on :2090 against test DB
@@ -124,6 +125,19 @@ The fix is in [dev/vitest.config.ts](../dev/vitest.config.ts) (`process.env.NODE
 The repo's email server is **Mailpit** (MailHog-compatible SMTP, but its own HTTP API). The test helper `waitForMailTo(email, timeoutMs?)` polls Mailpit's `/api/v1/messages` endpoint until a message addressed to `email` appears, then fetches the parsed body via `/api/v1/message/{id}`. `extractTokenFromBody(body, 'token')` regexes `?token=…` out of any URL in the body.
 
 Override the URL with `TEST_MAILHOG_URL` if Mailpit isn't on the default `http://localhost:8025`.
+
+### Object storage
+
+Upload paths are exercised for real, not mocked — inbox attachments and inline
+images, video upload URLs, file shares. Without a bucket every one of those
+endpoints returns 500 and roughly a dozen tests fail in ways that read like
+product bugs. `scripts/setup-test-s3.sh` starts MinIO and creates the bucket,
+then prints the `S3_*` block to paste into `dev/.env`. Give a worktree its own:
+
+```
+TEST_S3_PORT=9600 TEST_S3_BUCKET=nuxtinator-test-6 \
+  TEST_S3_CONTAINER=nuxtinator-test-minio-6 ./scripts/setup-test-s3.sh
+```
 
 ### Public anonymous routes in multi-tenant mode
 
@@ -335,11 +349,21 @@ If the host's `.nuxt/` directory accumulates stale generated imports (you'll see
 
 ## CI
 
-Not yet wired. When it is, the GitHub Actions workflow needs:
+`.github/workflows/ci.yml` runs three jobs on every pull request: **Lint & types**
+(`verify-layers`, `lint`, `typecheck` — no services, fails fast), **Tests** (vitest)
+and **E2E** (Playwright).
 
-- Postgres service container (or `services: postgres`) — the workflow runs `setup-test-db.sh` to provision the roles + DB
-- Mailpit service container (or skip email tests on CI by tagging them and filtering)
-- `bun install`, `bun run test:db`, `bun run test`, `bun playwright install chromium`, `bun run test:e2e`
+The two suite jobs need three backing services:
+
+- **Postgres**, as a service container. The job runs `scripts/setup-test-db.sh` to
+  provision the `host_admin` / `app_user` roles and the database.
+- **Mailpit**, as a service container (`axllent/mailpit`). It must be Mailpit, not
+  MailHog — the helpers use Mailpit's v1 HTTP API and MailHog 404s every one of them.
+- **MinIO**, started by `scripts/setup-test-s3.sh`. Attachment, inline-image, video
+  and file-share tests all upload for real; without a bucket every one of those
+  endpoints returns 500. It is a step rather than a `services:` entry because a
+  service container's command can't be overridden and the MinIO image needs
+  `server /data`.
 
 The wrapper script's plain-text summary will show in CI logs without ANSI noise.
 

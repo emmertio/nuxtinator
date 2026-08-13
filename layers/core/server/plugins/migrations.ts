@@ -83,9 +83,10 @@ export function whenMigrationsComplete(): Promise<void> {
 
 export default defineNitroPlugin(() => {
   migrationsReady = runMigrations()
-  // The middleware is the only consumer and it re-throws for the caller that
-  // needs it. Attach a no-op catch so a failure here isn't also an unhandled
-  // rejection that tears the process down before any request can report it.
+  // Consumers await the promise and a rejection reaches them intact. This
+  // extra handler only stops the same rejection from ALSO surfacing as an
+  // unhandled one, which would kill the process before any request could
+  // report what went wrong.
   migrationsReady.catch(() => {})
 })
 
