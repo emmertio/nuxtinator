@@ -16,7 +16,7 @@
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, relative, resolve, sep } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import {
   assembleCatalog,
   loadRoster,
@@ -64,6 +64,21 @@ function importsOf(content: string): string[] {
 }
 
 const ALIAS_PREFIXES = ['#core', '#permissions', '#tenant', '#email']
+
+// '@nuxtinator/core/test-helpers' → '@nuxtinator/core'
+function pkgOfSpecifier(spec: string): string {
+  const [scope, name] = spec.split('/')
+  return `${scope}/${name}`
+}
+
+function resolvesFrom(spec: string, importer: string): boolean {
+  try {
+    import.meta.resolve(spec, pathToFileURL(importer).href)
+    return true
+  } catch {
+    return false
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Checks
@@ -152,6 +167,20 @@ function checkCrossLayerImports(catalog: Catalog) {
         // Alias usage (provider-declared check).
         if (ALIAS_PREFIXES.some((a) => spec === a || spec.startsWith(a + '/'))) {
           usesCoreAlias = true
+        }
+        // Cross-layer package imports: must resolve, and must be declared.
+        // Both failure modes are silent — an unresolvable specifier only shows
+        // up when something actually imports the file (a whole test suite once
+        // sat dead on `layer-core/test-helpers`), and an undeclared one works
+        // in this monorepo purely because the hoisted linker put the package at
+        // the root, then breaks the moment the layer is fetched standalone.
+        if (spec.startsWith('@nuxtinator/') && layer.pkg !== pkgOfSpecifier(spec)) {
+          const dep = pkgOfSpecifier(spec)
+          if (!resolvesFrom(spec, file)) {
+            err(`'${layer.id}' imports '${spec}' in ${rel(file)} — that specifier does not resolve. Check the package name and its exports map.`)
+          } else if (!layer.requires.includes(dep)) {
+            err(`'${layer.id}' imports '${spec}' in ${rel(file)} but does not declare '${dep}' — add it to optionalDependencies. It resolves here only because the hoisted linker put it at the repo root.`)
+          }
         }
         // Relative import escaping this layer's own directory.
         if (!spec.startsWith('.')) continue
