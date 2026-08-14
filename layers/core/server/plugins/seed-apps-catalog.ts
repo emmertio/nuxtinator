@@ -43,6 +43,14 @@ export default defineNitroPlugin((nitroApp) => {
     const databaseUrl = useRuntimeConfig().databaseUrl || process.env.DATABASE_URL
     if (!databaseUrl) return
 
+    // Every app is attempted before anything is reported, so one bad row can't
+    // cost the rest their catalog entry — but a failure is then raised rather
+    // than logged and forgotten. A half-seeded catalog means an app the host
+    // admin can never enable, and a warning on stdout is not a destination for
+    // that. The throw reaches Nitro's error capture, and the insert is
+    // idempotent, so a boot that gets further re-seeds the stragglers.
+    const failures: Array<{ id: string, error: unknown }> = []
+
     for (const app of apps) {
       try {
         await adminDb
@@ -50,14 +58,20 @@ export default defineNitroPlugin((nitroApp) => {
           .values({ id: app.id, status: app.defaultStatus ?? 'available' })
           .onConflict(oc => oc.column('id').doNothing())
           .execute()
-      } catch (err) {
-        // Loud, and at error level: a swallowed warning here is what kept the
-        // pre-migration race invisible for as long as it was. The loop still
-        // continues so one bad app can't cost the rest their catalog row, and
-        // the insert is idempotent, so the next boot retries.
-        console.error(`[seed-apps-catalog] failed to seed app "${app.id}":`, err)
+      } catch (error) {
+        failures.push({ id: app.id, error })
       }
     }
+
+    if (failures.length > 0) {
+      for (const { id, error } of failures) {
+        console.error(`[seed-apps-catalog] failed to seed app "${id}":`, error)
+      }
+      throw new Error(
+        `[seed-apps-catalog] could not seed ${failures.length} of ${apps.length} apps: ${failures.map(f => f.id).join(', ')}`
+      )
+    }
+
     console.log(`[seed-apps-catalog] ensured ${apps.length} apps in catalog: ${apps.map(a => a.id).join(', ')}`)
   })
 })
