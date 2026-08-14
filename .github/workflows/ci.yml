@@ -9,9 +9,19 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Config the app refuses to run without. A developer has these in dev/.env,
+# which CI has no copy of, so anything they enable — password-reset and invite
+# links, outbound mail, secret storage — fails only here. Every value is
+# deliberately fake.
 env:
   JWT_SECRET: ci-test-secret-not-a-real-key
   NUXT_TENANT_FLOW_SECRET: ci-test-flow-secret-not-a-real-key
+  # 32 bytes of hex, the length secret-crypto.ts requires.
+  NUXT_SECRET_ENCRYPTION_KEY: 00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
+  OAUTH_CONSENT_COOKIE_SECRET: ci-test-consent-secret-not-a-real-key
+  APP_TITLE: Nuxtinator CI
+  SMTP_FROM: ci@localhost
+  SMTP_FROM_NAME: Nuxtinator CI
 
 jobs:
   # Fast feedback: no services needed, fails in ~2 min if the branch is malformed.
@@ -60,6 +70,11 @@ jobs:
       TEST_DATABASE_URL: postgresql://host_admin:test@localhost:5432/go_saas_test
       TEST_APP_DATABASE_URL: postgresql://app_user:test@localhost:5432/go_saas_test
       TEST_MAILHOG_URL: http://localhost:8025
+      # vitest boots its Nuxt server on a random port, so this can't match it.
+      # It only has to be a valid absolute URL: the link builders refuse to
+      # emit a relative one, and the mail assertions read the token back out
+      # of whatever URL they're given.
+      NUXT_PUBLIC_SITE_URL: http://localhost:2080
       S3_ENDPOINT: http://127.0.0.1:9000
       S3_REGION: us-east-1
       S3_ACCESS_KEY_ID: minioadmin
