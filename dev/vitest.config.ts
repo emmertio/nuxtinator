@@ -26,7 +26,16 @@ for (const k of ['TEST_DATABASE_URL', 'TEST_APP_DATABASE_URL', 'JWT_SECRET', 'TE
   if (env[k]) process.env[k] = env[k]
 }
 
+// The same alias core's nuxt.config declares. Without it a test can only reach
+// a core module by a relative path that climbs out of its own layer — which
+// `verify-layers` rejects, for good reason. Projects don't inherit root-level
+// resolve config, so it goes on each one.
+const layerAliases = {
+  '#core': resolve(__dirname, '../layers/core')
+}
+
 interface LayerProject {
+  resolve: { alias: Record<string, string> }
   test: {
     name: string
     include: string[]
@@ -39,6 +48,7 @@ interface LayerProject {
 
 function layerProject(name: string, root: string): LayerProject {
   return {
+    resolve: { alias: layerAliases },
     test: {
       name,
       include: [resolve(__dirname, root, '**/*.test.ts')],
