@@ -14,7 +14,8 @@
     "zod": "^3.23.0"
   },
   "optionalDependencies": {
-    "@nuxtinator/core": "*"
+    "@nuxtinator/core": "*",
+    "@nuxtinator/tenancy": "*"
   },
   "peerDependencies": {
     "h3": "^1.0.0",

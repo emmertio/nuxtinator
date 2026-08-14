@@ -18,7 +18,8 @@
   "optionalDependencies": {
     "@nuxtinator/ai": "*",
     "@nuxtinator/core": "*",
-    "@nuxtinator/crm": "*"
+    "@nuxtinator/crm": "*",
+    "@nuxtinator/tenancy": "*"
   },
   "peerDependencies": {
     "h3": "^1.0.0",
