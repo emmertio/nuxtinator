@@ -131,14 +131,13 @@ test('delete confirm wipes the card from the grid without reload', async ({ page
   const card = page.locator('.video-card').filter({ hasText: 'delete me' })
   await expect(card).toBeVisible({ timeout: 5000 })
 
-  // The card's delete button only opens a confirmation modal; the DELETE
-  // fires from the modal's own button. Both are named "Delete", so the second
-  // click is scoped to the dialog.
-  await card.getByRole('button', { name: /^delete$/i }).click()
+  // The card's delete button only opens a confirmation modal; the DELETE fires
+  // from the modal's own button.
+  await card.getByTestId('video-delete').click()
 
   await Promise.all([
     page.waitForResponse(r => r.url().includes(`/api/videos/${video.id}`) && r.request().method() === 'DELETE' && r.status() === 200),
-    page.getByRole('dialog').getByRole('button', { name: /^delete$/i }).click()
+    page.getByTestId('video-delete-confirm').click()
   ])
 
   await expect(card).not.toBeVisible({ timeout: 5000 })

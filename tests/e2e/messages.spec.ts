@@ -318,12 +318,8 @@ test('notifications bell: userA @-mentions userB; B sees their unread badge incr
   // endpoints — there is no /api/messages/notifications any more.
   await pageB.waitForResponse(r => r.url().includes('/api/notifications/unread-counts') && r.status() === 200)
 
-  // The count is a UChip sibling of the bell button, not a child of it, and
-  // the layout renders two bells (mobile + desktop) — scope to the visible one.
-  const badge = pageB
-    .locator('div:has(> button[aria-label="Notifications"]):visible')
-    .locator('span[data-slot="base"]')
-  await expect(badge).toBeVisible()
+  // The layout renders two bells (mobile + desktop); only one is on screen.
+  const badge = pageB.getByTestId('notification-unread-count').locator('visible=true')
   await expect(badge).toHaveText(/[1-9]/)
 
   await ctxB.close()
