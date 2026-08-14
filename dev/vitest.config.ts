@@ -26,6 +26,13 @@ for (const k of ['TEST_DATABASE_URL', 'TEST_APP_DATABASE_URL', 'JWT_SECRET', 'TE
   if (env[k]) process.env[k] = env[k]
 }
 
+// Every project boots its own Nuxt server against the SAME database, so a job
+// that is meant to be a cluster singleton can only belong to one of them. This
+// reaches all eleven, since they inherit `process.env`; the project that owns
+// the job turns it back on for its own server through `createTest({ env })`,
+// which reaches that server and no other.
+process.env.NUXT_INBOX_SEND_SWEEP_ENABLED = 'false'
+
 // The same alias core's nuxt.config declares. Without it a test can only reach
 // a core module by a relative path that climbs out of its own layer — which
 // `verify-layers` rejects, for good reason. Projects don't inherit root-level

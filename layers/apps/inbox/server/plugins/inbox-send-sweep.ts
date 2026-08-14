@@ -8,17 +8,21 @@ export default defineNitroPlugin(() => {
   // Don't run crons in build / prepare / typecheck contexts.
   if (process.env.NUXT_PREPARE_BUILD || process.env.NITRO_PRESET === 'prepare') return
 
-  // Under vitest, every layer's project boots its own server and they all share
-  // one test database — so eleven of them contend for a lock that, by design,
-  // exactly one holder wins. The inbox project is the only one with queued mail
-  // and it routinely lost, leaving its rows untouched at `attempts: 0`. Only
-  // the server that opts in sweeps; inbox's global setup passes the flag
-  // through `createTest({ env })`, which reaches its own server and no other.
-  // Outside vitest nothing changes.
-  if (process.env.VITEST && !process.env.INBOX_SEND_SWEEP_ENABLED) return
-
-  const config = useRuntimeConfig()
-  const seconds = Math.min(Math.max(parseInt(String(config.inboxSendSweepSeconds || '20'), 10) || 20, 2), 300)
+  // The sweep is a cluster singleton, gated on a Postgres advisory lock, so
+  // exactly one process per database wins it. That is right in production and
+  // wrong under vitest, where all eleven layer projects boot a server against
+  // ONE shared test database: eleven contenders for a single lock, and the
+  // inbox project — the only one with queued mail — kept losing, leaving its
+  // rows at `attempts: 0`. The test config turns the sweep off for every
+  // server and inbox's global setup turns it back on for its own.
+  //
+  // Note this sidesteps the contention rather than fixing it. Give a second
+  // project queued mail and it returns; the real fix is a database per project.
+  const { enabled, seconds } = inboxResolveSendSweepSchedule(useRuntimeConfig())
+  if (!enabled) {
+    console.log('[inbox] send sweep disabled by config — not scheduling')
+    return
+  }
 
   new Cron(`*/${seconds} * * * * *`, { protect: true }, () => {
     void inboxWithAdvisoryLock(INBOX_SEND_SWEEP_LOCK_KEY, 'send sweep', () => inboxRunSendSweep())
