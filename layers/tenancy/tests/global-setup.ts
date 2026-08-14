@@ -38,7 +38,7 @@ const hooks = createTest({
 export async function setup() {
   if (!process.env.TEST_DATABASE_URL || !process.env.TEST_APP_DATABASE_URL) {
     throw new Error(
-      'TEST_DATABASE_URL and TEST_APP_DATABASE_URL must be set in host/.env. Run scripts/setup-test-db.sh.'
+      'TEST_DATABASE_URL and TEST_APP_DATABASE_URL must be set in dev/.env. Run scripts/setup-test-db.sh.'
     )
   }
 
