@@ -88,6 +88,14 @@ export default defineNuxtConfig({
       // Leading dot = accept any *.localhost Host header, so NUXT_HOST
       // overrides don't also need an allowedHosts change.
       allowedHosts: ['.localhost']
+    },
+    optimizeDeps: {
+      // Heavy CJS deps pulled in by the videos and list-of-100 pages. Left to
+      // discover them on first navigation, Vite re-optimizes mid-session and
+      // full-reloads the page — which drops whatever navigation was in flight.
+      // A developer sees a flicker; an e2e run sees a route that never arrives.
+      // Pre-bundling at boot costs a few seconds once.
+      include: ['apexcharts', 'vue3-apexcharts', 'mediabunny', 'fix-webm-duration']
     }
   },
 
