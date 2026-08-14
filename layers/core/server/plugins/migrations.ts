@@ -3,6 +3,7 @@ import { promises as fs } from 'node:fs'
 import * as path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { createKyselyDb } from '#core/server/utils/db-connection'
+import { markMigrationsComplete, markMigrationsFailed } from '#core/server/utils/migration-state'
 
 // Migration runner. Builds its own Kysely client connecting via DATABASE_URL.
 // In single-tenant mode that's just the database. In multi-tenant mode it's
@@ -69,25 +70,11 @@ class LayeredMigrationProvider implements MigrationProvider {
   }
 }
 
-// Nitro calls plugins without awaiting them, so the HTTP listener opens while
-// this one is still applying migrations. On a database that already carries the
-// schema nobody notices; on a fresh one (CI, a new worktree's test DB) the first
-// requests hit tables that don't exist yet. The plugin therefore publishes its
-// own completion as a promise, and `server/middleware/00.await-migrations.ts`
-// holds every request until it settles.
-let migrationsReady: Promise<void> = Promise.resolve()
-
-export function whenMigrationsComplete(): Promise<void> {
-  return migrationsReady
-}
-
+// The plugin runs migrations; `server/utils/migration-state.ts` owns the
+// readiness signal everything else waits on, and explains why it has to start
+// closed.
 export default defineNitroPlugin(() => {
-  migrationsReady = runMigrations()
-  // Consumers await the promise and a rejection reaches them intact. This
-  // extra handler only stops the same rejection from ALSO surfacing as an
-  // unhandled one, which would kill the process before any request could
-  // report what went wrong.
-  migrationsReady.catch(() => {})
+  runMigrations().then(markMigrationsComplete, markMigrationsFailed)
 })
 
 async function runMigrations(): Promise<void> {

@@ -1,6 +1,6 @@
 import { db as adminDb } from '#core/server/utils/database'
 import { getRegisteredApps } from '../utils/app-registry'
-import { whenMigrationsComplete } from './migrations'
+import { whenMigrationsComplete } from '#core/server/utils/migration-state'
 
 // Seeds the global `apps` catalog with one row per registered app layer.
 //
