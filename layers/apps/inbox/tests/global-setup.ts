@@ -25,7 +25,11 @@ const hooks = createTest({
   rootDir: HOST_DIR,
   server: true,
   browser: false,
-  env: { NODE_ENV: 'development' },
+  // `env` reaches only THIS project's server; `process.env` is inherited by
+  // every project's. The send sweep is a cluster singleton on a shared
+  // database, so it has to start here and nowhere else — see
+  // layers/apps/inbox/server/plugins/inbox-send-sweep.ts.
+  env: { NODE_ENV: 'development', INBOX_SEND_SWEEP_ENABLED: '1' },
   nuxtConfig: {
     vite: {
       define: {
