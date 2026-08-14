@@ -131,14 +131,14 @@ test('delete confirm wipes the card from the grid without reload', async ({ page
   const card = page.locator('.video-card').filter({ hasText: 'delete me' })
   await expect(card).toBeVisible({ timeout: 5000 })
 
-  // The library's deleteVideo() calls window.confirm() — auto-accept it.
-  page.once('dialog', dialog => dialog.accept())
+  // The card's delete button only opens a confirmation modal; the DELETE
+  // fires from the modal's own button. Both are named "Delete", so the second
+  // click is scoped to the dialog.
+  await card.getByRole('button', { name: /^delete$/i }).click()
 
-  // The trash button is a UButton with color=error variant=outline. Scope it
-  // under our card; it's the only error-colored action.
   await Promise.all([
     page.waitForResponse(r => r.url().includes(`/api/videos/${video.id}`) && r.request().method() === 'DELETE' && r.status() === 200),
-    card.locator('button').filter({ has: page.locator('span.iconify[class*="trash-2"], [class*="lucide-trash"], svg[class*="trash"]') }).first().click()
+    page.getByRole('dialog').getByRole('button', { name: /^delete$/i }).click()
   ])
 
   await expect(card).not.toBeVisible({ timeout: 5000 })

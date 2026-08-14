@@ -48,9 +48,11 @@ test('add a contact via the modal; appears in the list with progress incremented
   const { org } = await loginIntoNewOrg(page, { roles: ['admin'] })
   await page.goto(`/@${org.slug}/list-of-100`)
 
-  await expect(page.getByRole('heading', { name: /list of 100/i })).toBeVisible({ timeout: 5000 })
+  // First assertions after a navigation — left on the config's default, which
+  // allows for the dev server compiling the route on first visit.
+  await expect(page.getByRole('heading', { level: 1, name: /list of 100/i })).toBeVisible()
   // Empty-state copy.
-  await expect(page.locator('body')).toContainText(/your list is empty/i, { timeout: 5000 })
+  await expect(page.locator('body')).toContainText(/your list is empty/i)
 
   await page.getByRole('button', { name: /add contact/i }).first().click()
 

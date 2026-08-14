@@ -313,13 +313,18 @@ test('notifications bell: userA @-mentions userB; B sees their unread badge incr
   }])
   await pageB.goto(`/@${org.slug}/messages`)
 
-  // Bell shows unread badge for the mention. The notifications composable
-  // fetches on mount (NotificationBell calls start() in onMounted).
-  await pageB.waitForResponse(r => r.url().includes('/api/messages/notifications') && r.status() === 200, { timeout: 5000 })
+  // Bell shows unread badge for the mention. `messages_014_drop_notifications`
+  // handed notifications back to core, so the composable now reads core's
+  // endpoints — there is no /api/messages/notifications any more.
+  await pageB.waitForResponse(r => r.url().includes('/api/notifications/unread-counts') && r.status() === 200)
 
-  // The badge element renders inside the bell button when unread > 0.
-  await expect(pageB.locator('button[aria-label="Notifications"] .badge')).toBeVisible({ timeout: 5000 })
-  await expect(pageB.locator('button[aria-label="Notifications"] .badge')).toHaveText(/[1-9]/, { timeout: 5000 })
+  // The count is a UChip sibling of the bell button, not a child of it, and
+  // the layout renders two bells (mobile + desktop) — scope to the visible one.
+  const badge = pageB
+    .locator('div:has(> button[aria-label="Notifications"]):visible')
+    .locator('span[data-slot="base"]')
+  await expect(badge).toBeVisible()
+  await expect(badge).toHaveText(/[1-9]/)
 
   await ctxB.close()
 })
