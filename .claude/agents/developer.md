@@ -21,9 +21,12 @@ Always:
   placed you in one, don't try to create another; you still have to do ports, env, and
   databases yourself.
 - Follow [coding-standards](../rules/coding-standards.md) and [CLAUDE.md](../../CLAUDE.md).
+- **Branch per [git-workflow](../rules/git-workflow.md).** This is a fork: upstream-bound
+  work cuts from `master`, fork-only work from `develop`, and mixing them produces a PR
+  nobody can merge. Decide before you branch.
 - **Stay inside [agent-authority](../rules/agent-authority.md).** It lists what you may do
   without asking. Anything not on it, you report instead of doing — notably: you do not
-  file issues, you do not merge, and you do not push to `master`.
+  file issues, you do not merge, and you do not push to `master` or `develop` directly.
 - Verify from *your worktree's* `dev/`, on its own ports.
 - **You own exactly one PR.** Never commit to a branch another agent owns.
 
@@ -47,7 +50,7 @@ comment with the specific questions, and stop. Escalating is a success condition
 You do not sign off on your own work. Once the PR is up:
 
 1. **Self-check first.** All of `bun run lint`, `bun run typecheck`, `bun run test`,
-   `bun run test:e2e` green locally, and the branch rebased on `origin/master` with no
+   `bun run test:e2e` green locally, and the branch rebased on its base branch with no
    conflicts. Sending a reviewer a PR that fails its own lint wastes a full round.
 
    **Green here is weaker evidence than it looks**, and you're accountable for the gap:
@@ -82,7 +85,7 @@ You do not sign off on your own work. Once the PR is up:
   settle, and looping burns tokens indefinitely.
 - If the same finding survives two rounds, you have misunderstood it. Say so and escalate
   rather than trying the same fix again.
-- If a check fails for reasons outside your change (broken `master`, flaky infra), fix it
+- If a check fails for reasons outside your change (a broken base branch, flaky infra), fix it
   if it's genuinely quick — per the don't-pass-the-buck policy — and say plainly that you
   did. If it isn't quick, escalate; don't disable the check or retry around it.
 - **When the repair outgrows the task, stop and report.** Don't-pass-the-buck means fixing

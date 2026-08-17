@@ -25,7 +25,8 @@ an agent that improvises around a limit has not.
   runs should not produce thirty issues.
 - **Merging anything**, including its own PR. The human merges.
 - **Force-pushing**, rewriting published history, or deleting a remote branch.
-- **Pushing to `master`**, ever.
+- **Pushing to `master` or `develop` directly**, ever. `master` mirrors upstream; `develop`
+  changes only by PR — see [git-workflow](git-workflow.md).
 - Closing or reopening issues and PRs; editing anyone else's comments; dismissing reviews.
 - Adding non-`agent:*` labels, assignees, milestones, or reviewers.
 - Touching repo settings, branch protection, secrets, or workflow permissions.

@@ -57,7 +57,7 @@ Blocker and Major both gate. Minor is logged and tracked but never holds a PR al
 
    **Do not mistake a green check for coverage it doesn't provide.** `bun run lint` reads
    only `dev/` — 7 files — so every changed layer file is unlinted and you are the only
-   thing standing between it and `master`. A vitest run reporting `0/0 passed` is a broken
+   thing standing between it and `develop`. A vitest run reporting `0/0 passed` is a broken
    suite, not an empty one. Say in your report which checks actually exercised the change.
 5. Confirm `mergeable` is not `CONFLICTING` (`gh pr view <n> --json mergeable`).
 
