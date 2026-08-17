@@ -5,7 +5,7 @@ description: Set up and tear down the git worktrees used for parallel feature wo
 
 # Worktrees
 
-Feature work happens in a worktree; the parent checkout stays on `master` and stays clean.
+Feature work happens in a worktree; the parent checkout stays on `develop` and stays clean.
 A worktree exists exactly as long as its branch has unfinished business.
 
 Several run at once, so **every worktree gets its own ports and its own databases**. Two
@@ -35,18 +35,21 @@ isolated. Those worktrees live at `worktrees/<name>/` (gitignored).
 1. **Sweep for retired worktrees first** (see below) — setup time is when stale ones get
    noticed, and slots get freed.
 
-2. **Fetch, and branch from `origin/master`, not local `master`.** The parent's local ref
+2. **Fetch, and branch from the remote-tracking ref, not the local one.** Branch from
+   `origin/develop` for fork-only work, or `origin/master` for anything bound for upstream —
+   see [git-workflow](../../rules/git-workflow.md); where a branch starts decides where it
+   can go. The parent's local ref
    is a trap: a dirty parent makes `git pull` abort, and when output is trimmed
    (`| tail`) the abort is invisible — the worktree silently branches from a stale tip
    and surfaces later as CI-only failures against code the branch has never seen.
 
    ```bash
    git fetch origin
-   git worktree add worktrees/<name> -b <branch> origin/master
+   git worktree add worktrees/<name> -b <branch> origin/develop   # or origin/master, upstream-bound
    ```
 
    Confirm: `git -C worktrees/<name> rev-parse HEAD` must equal
-   `git rev-parse origin/master`. If the parent checkout is dirty, say so — those changes
+   `git rev-parse origin/<base>`. If the parent checkout is dirty, say so — those changes
    belong to someone. Never stash or discard them to make a pull work.
 
 3. **Derive the port slot — don't search for a free one.** Slot `N = (issue number % 8) + 1`,
@@ -130,14 +133,14 @@ isolated. Those worktrees live at `worktrees/<name>/` (gitignored).
 8. **Verify before building on it**: `bun run verify-layers`, then start the dev server
    and confirm it reports the slot's port.
 
-If `master` moves while work is in flight, rebase the worktree branch onto it sooner
+If the base branch moves while work is in flight, rebase the worktree branch onto it sooner
 rather than later.
 
 ## Working inside a worktree
 
 - **Pass the repo explicitly to every git command: `git -C <absolute-path> …`.** Working-
   directory drift doesn't only corrupt what you read, it redirects what you *write* — a
-  bare `git mv` meant for a worktree lands in the parent, staging a rename on `master`
+  bare `git mv` meant for a worktree lands in the parent, staging a rename on `develop`
   that nothing in the output distinguishes from success.
 - **The shell's working directory drifts between tool calls.** Before interpreting any
   surprising test, build, or git output, run `pwd` and `git log --oneline -1`. If HEAD

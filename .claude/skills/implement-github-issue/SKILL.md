@@ -22,9 +22,16 @@ worktree, branch, and port slot** so parallel efforts never collide.
 3. **Claim it** — `gh issue edit <n> --add-label agent:working`. Before doing any work, so
    a second dispatcher tick can't hand the same issue to another agent.
 
-4. **Create the worktree** with the `worktree` skill: branch `issue-<n>-<slug>` off
-   `origin/master`, port slot `(<n> % 8) + 1`, copy and rewrite `dev/.env`, provision its
-   databases, `bun install`.
+4. **Pick the base, then create the worktree.** Per
+   [git-workflow](../../rules/git-workflow.md), where the branch starts decides where it
+   can go — and retrofitting is expensive:
+   - fixes or improves something **upstream already owns** → base `origin/master`, and the
+     PR goes to `corsacca/nuxtinator`
+   - our tooling, conventions, or anything upstream won't take → base `origin/develop`
+   - unsure → `origin/master`, so the option stays open
+
+   Then use the `worktree` skill: branch `issue-<n>-<slug>` off that base, port slot
+   `(<n> % 8) + 1`, copy and rewrite `dev/.env`, provision its databases, `bun install`.
 
 5. **Implement**, following [coding-standards](../../rules/coding-standards.md).
 
@@ -32,11 +39,11 @@ worktree, branch, and port slot** so parallel efforts never collide.
    dev server. All four green before you open anything: `bun run lint`,
    `bun run typecheck`, `bun run test`, `bun run test:e2e`.
 
-7. **Open the PR** — rebase on `origin/master` first, then push and open it as a **draft**
+7. **Open the PR** — rebase on the base branch first, then push and open it as a **draft**
    linking the issue:
 
    ```bash
-   gh pr create --repo emmertio/nuxtinator --draft --base master \
+   gh pr create --repo emmertio/nuxtinator --draft --base develop \
      --title "<title>" --body "Closes #<n>
 
    <what changed, and how each acceptance criterion is met>"
