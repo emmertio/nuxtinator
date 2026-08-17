@@ -50,6 +50,11 @@ export default defineNuxtConfig({
     // Send-sweep cadence in seconds. Tests lower it to make queued sends
     // observable quickly.
     inboxSendSweepSeconds: process.env.INBOX_SEND_SWEEP_SECONDS || '20',
+    // Whether this process runs the outbound send sweep at all. On by default:
+    // a deployment that never sweeps never delivers. Set it false where several
+    // servers share one database and only one of them should sweep — see
+    // `server/plugins/inbox-send-sweep.ts`.
+    inboxSendSweepEnabled: process.env.NUXT_INBOX_SEND_SWEEP_ENABLED !== 'false',
     // Cron for the daily AI grounding sync (UTC). Default 03:00.
     inboxGroundingSyncCron: process.env.INBOX_GROUNDING_SYNC_CRON || '0 3 * * *'
   }

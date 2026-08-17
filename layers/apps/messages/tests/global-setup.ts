@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 import {
   getHostAdminDb,
+  waitForMigrations,
   closeTestDatabases,
   cleanupMessagesTestData,
   cleanupTenancyTestData,
@@ -13,7 +14,7 @@ import {
   clearMailhog
 } from './helpers'
 
-const HOST_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../host')
+const HOST_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../dev')
 
 // NODE_ENV='development' at build + run time so the email layer routes to
 // Mailpit (see core's global-setup.ts for the why).
@@ -39,7 +40,7 @@ const hooks = createTest({
 export async function setup() {
   if (!process.env.TEST_DATABASE_URL || !process.env.TEST_APP_DATABASE_URL) {
     throw new Error(
-      'TEST_DATABASE_URL and TEST_APP_DATABASE_URL must be set in host/.env. Run scripts/setup-test-db.sh.'
+      'TEST_DATABASE_URL and TEST_APP_DATABASE_URL must be set in dev/.env. Run scripts/setup-test-db.sh.'
     )
   }
 
@@ -49,6 +50,9 @@ export async function setup() {
 
   await hooks.beforeAll()
   exposeContextToEnv()
+
+  // Boot migrations run detached from the listener — hold here until they land.
+  await waitForMigrations()
 
   const admin = getHostAdminDb()
   await cleanupMessagesTestData(admin)

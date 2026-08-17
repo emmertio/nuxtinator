@@ -11,8 +11,8 @@ import {
   getHostAdminDb,
   closeTestDatabases,
   cleanupCoreTestData
-} from 'layer-core/test-helpers'
-import { cleanupTenancyTestData } from 'layer-tenancy/test-helpers'
+} from '@nuxtinator/core/test-helpers'
+import { cleanupTenancyTestData } from '@nuxtinator/tenancy/test-helpers'
 import { loginAsNewUser } from './helpers/login'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))

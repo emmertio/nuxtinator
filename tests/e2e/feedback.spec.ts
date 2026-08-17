@@ -14,7 +14,7 @@
 //     it inside the same Playwright context against this app's routes is
 //     out of scope; vitest covers POST /api/v1/feedback end-to-end against
 //     a project + org.
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import { randomUUID } from 'node:crypto'
 import { config as loadDotenv } from 'dotenv'
 import { resolve, dirname } from 'node:path'
@@ -23,14 +23,14 @@ import {
   getHostAdminDb,
   closeTestDatabases,
   cleanupCoreTestData
-} from 'layer-core/test-helpers'
-import { cleanupTenancyTestData } from 'layer-tenancy/test-helpers'
+} from '@nuxtinator/core/test-helpers'
+import { cleanupTenancyTestData } from '@nuxtinator/tenancy/test-helpers'
 import {
   cleanupFeedbackTestData,
   createTestProject,
   createTestCard,
   getColumnByName
-} from 'layer-feedback/test-helpers'
+} from '@nuxtinator/feedback/test-helpers'
 import { loginIntoNewOrg } from './helpers/login'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -43,6 +43,13 @@ test.afterAll(async () => {
   await cleanupCoreTestData(sql)
   await closeTestDatabases()
 })
+
+// The board and the projects sidebar both render a project's name, so a plain
+// text locator matches twice and trips Playwright's strict mode. `project-row`
+// marks only the board's row — the one that is draggable and carries the
+// context menu — so this is also the right target for a right-click.
+const boardProjectRow = (page: Page, name: string) =>
+  page.getByTestId('project-row').filter({ hasText: name })
 
 // The chat-bubble widget (wrapper z-index lowered to 40 in production but
 // still rendered in the bottom-right) sits exactly where USlideover places
@@ -92,7 +99,7 @@ test('create a project from the empty board; project tile renders without reload
   await expect(page.locator('body')).toContainText(projectName, { timeout: 5000 })
 })
 
-test('open existing board: every migration-seeded column is visible (FEEDBACK INBOX, BACKLOG, PLANNING, BUILDING, TESTING, DONE)', async ({ page }) => {
+test('open existing board: every migration-seeded column is visible (FEEDBACK INBOX, TODO, DOING, DONE, ARCHIVE)', async ({ page }) => {
   const sql = getHostAdminDb()
   const { org } = await loginIntoNewOrg(page, { roles: ['admin'] })
   await createTestProject(sql, { org_id: org.id, name: 'test-feedback-board-cols' })
@@ -100,12 +107,11 @@ test('open existing board: every migration-seeded column is visible (FEEDBACK IN
   await page.goto(`/@${org.slug}/feedback`)
 
   // Wait for the project header to confirm board hydrated.
-  await expect(page.locator('text=test-feedback-board-cols')).toBeVisible({ timeout: 10_000 })
+  await expect(boardProjectRow(page, 'test-feedback-board-cols')).toBeVisible({ timeout: 10_000 })
 
-  // Columns are rendered as group cells with the name in text. Each non-
-  // archive column is visible by default.
-  for (const name of ['FEEDBACK INBOX', 'BACKLOG', 'PLANNING', 'BUILDING', 'TESTING', 'DONE']) {
-    await expect(page.locator(`text=${name}`).first()).toBeVisible({ timeout: 5000 })
+  // Each column renders its name as a heading in the board's header row.
+  for (const name of ['FEEDBACK INBOX', 'TODO', 'DOING', 'DONE', 'ARCHIVE']) {
+    await expect(page.getByRole('heading', { name }).first()).toBeVisible({ timeout: 5000 })
   }
 })
 
@@ -115,14 +121,14 @@ test('create a card via the per-cell Add button; card renders in the column', as
   const project = await createTestProject(sql, { org_id: org.id, name: 'test-feedback-cards-proj' })
 
   await page.goto(`/@${org.slug}/feedback`)
-  await expect(page.locator('text=test-feedback-cards-proj')).toBeVisible({ timeout: 10_000 })
+  await expect(boardProjectRow(page, 'test-feedback-cards-proj')).toBeVisible({ timeout: 10_000 })
 
   // Each empty cell exposes a "+" button with aria-label "Add card to <COLUMN_NAME>".
-  // Pick BACKLOG since that's the canonical "new work" column. Empty cells
+  // Pick TODO since that's the canonical "approved queue" column. Empty cells
   // surface the button at opacity-100, so it's clickable without hover.
-  // Multiple BACKLOG cells exist if there are multiple swimlanes — scope
+  // Multiple TODO cells exist if there are multiple swimlanes — scope
   // to the first one.
-  await page.getByRole('button', { name: /add card to backlog/i }).first().click()
+  await page.getByRole('button', { name: /add card to todo/i }).first().click()
 
   const cardTitle = `test-feedback-card-${randomUUID().slice(0, 6)}`
   // Card modal: UInput with placeholder "Briefly describe the card".
@@ -148,12 +154,12 @@ test('edit a card via the side panel; updated title appears on the board', async
   const sql = getHostAdminDb()
   const { org } = await loginIntoNewOrg(page, { roles: ['admin'] })
   const project = await createTestProject(sql, { org_id: org.id })
-  const backlog = await getColumnByName(sql, 'BACKLOG')
+  const todo = await getColumnByName(sql, 'TODO')
   const card = await createTestCard(sql, {
     org_id: org.id,
     project_id: project.id,
     swimlane_id: project.default_swimlane_id,
-    column_id: backlog.id,
+    column_id: todo.id,
     title: 'test-feedback-orig-title'
   })
 
@@ -187,12 +193,12 @@ test('delete a card via the context menu; card disappears from the board', async
   const sql = getHostAdminDb()
   const { org } = await loginIntoNewOrg(page, { roles: ['admin'] })
   const project = await createTestProject(sql, { org_id: org.id })
-  const backlog = await getColumnByName(sql, 'BACKLOG')
+  const todo = await getColumnByName(sql, 'TODO')
   const card = await createTestCard(sql, {
     org_id: org.id,
     project_id: project.id,
     swimlane_id: project.default_swimlane_id,
-    column_id: backlog.id,
+    column_id: todo.id,
     title: 'test-feedback-to-delete'
   })
 
@@ -222,7 +228,7 @@ test('delete a project from the toolbar/context menu; project tile gone from the
   const project = await createTestProject(sql, { org_id: org.id, name: 'test-feedback-doomed-proj' })
 
   await page.goto(`/@${org.slug}/feedback`)
-  await expect(page.locator('text=test-feedback-doomed-proj')).toBeVisible({ timeout: 10_000 })
+  await expect(boardProjectRow(page, 'test-feedback-doomed-proj')).toBeVisible({ timeout: 10_000 })
 
   // The project header exposes a delete action via the project context menu
   // (right-click). The KanbanContextMenu's danger items are a two-click
@@ -231,7 +237,7 @@ test('delete a project from the toolbar/context menu; project tile gone from the
   // deleteProject(), then the DELETE.
   page.once('dialog', d => d.accept())
 
-  await page.locator('text=test-feedback-doomed-proj').first().click({ button: 'right' })
+  await boardProjectRow(page, 'test-feedback-doomed-proj').click({ button: 'right' })
 
   // First click arms the confirm.
   await page.getByRole('button', { name: /^delete$/i }).first().click()
@@ -250,10 +256,10 @@ test('add a new swimlane to a project via context menu; new lane row appears', a
   const project = await createTestProject(sql, { org_id: org.id, name: 'test-feedback-swimlane-proj' })
 
   await page.goto(`/@${org.slug}/feedback`)
-  await expect(page.locator('text=test-feedback-swimlane-proj')).toBeVisible({ timeout: 10_000 })
+  await expect(boardProjectRow(page, 'test-feedback-swimlane-proj')).toBeVisible({ timeout: 10_000 })
 
   // Open the project context menu.
-  await page.locator('text=test-feedback-swimlane-proj').first().click({ button: 'right' })
+  await boardProjectRow(page, 'test-feedback-swimlane-proj').click({ button: 'right' })
 
   // Click "Add swimlane".
   await page.getByRole('button', { name: /add swimlane/i }).or(page.getByRole('menuitem', { name: /add swimlane/i })).first().click()
@@ -287,7 +293,7 @@ test('non-admin member sees the board but rename/delete project options are gate
   await createTestProject(sql, { org_id: org.id, name: 'test-feedback-member-view' })
 
   await page.goto(`/@${org.slug}/feedback`)
-  await expect(page.locator('text=test-feedback-member-view')).toBeVisible({ timeout: 10_000 })
+  await expect(boardProjectRow(page, 'test-feedback-member-view')).toBeVisible({ timeout: 10_000 })
 
   // Toolbar's "New project" button is visible since members can write.
   await expect(page.getByRole('button', { name: /new project/i }).first()).toBeVisible()

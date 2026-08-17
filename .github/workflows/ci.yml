@@ -1,0 +1,157 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Config the app refuses to run without. A developer has these in dev/.env,
+# which CI has no copy of, so anything they enable — password-reset and invite
+# links, outbound mail, secret storage — fails only here. Every value is
+# deliberately fake.
+env:
+  JWT_SECRET: ci-test-secret-not-a-real-key
+  NUXT_TENANT_FLOW_SECRET: ci-test-flow-secret-not-a-real-key
+  # 32 bytes of hex, the length secret-crypto.ts requires.
+  NUXT_SECRET_ENCRYPTION_KEY: 00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
+  OAUTH_CONSENT_COOKIE_SECRET: ci-test-consent-secret-not-a-real-key
+  APP_TITLE: Nuxtinator CI
+  SMTP_FROM: ci@localhost
+  SMTP_FROM_NAME: Nuxtinator CI
+
+jobs:
+  # Fast feedback: no services needed, fails in ~2 min if the branch is malformed.
+  static:
+    name: Lint & types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: bun install --frozen-lockfile
+      - name: Verify layer wiring
+        run: bun run verify-layers
+        working-directory: dev
+      - run: bun run lint
+        working-directory: dev
+      - run: bun run typecheck
+        working-directory: dev
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      # Email-layer tests read captured mail over Mailpit's v1 HTTP API, and the
+      # email backend posts to SMTP on 1025. MailHog speaks a different API and
+      # makes every mail assertion 404 — see layers/core/tests/helpers/mailhog.ts.
+      mailpit:
+        image: axllent/mailpit:latest
+        ports:
+          - 1025:1025
+          - 8025:8025
+    env:
+      TEST_DATABASE_URL: postgresql://host_admin:test@localhost:5432/go_saas_test
+      TEST_APP_DATABASE_URL: postgresql://app_user:test@localhost:5432/go_saas_test
+      TEST_MAILHOG_URL: http://localhost:8025
+      # vitest boots its Nuxt server on a random port, so this can't match it.
+      # It only has to be a valid absolute URL: the link builders refuse to
+      # emit a relative one, and the mail assertions read the token back out
+      # of whatever URL they're given.
+      NUXT_PUBLIC_SITE_URL: http://localhost:2080
+      S3_ENDPOINT: http://127.0.0.1:9000
+      S3_REGION: us-east-1
+      S3_ACCESS_KEY_ID: minioadmin
+      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_BUCKET_NAME: nuxtinator-test
+      S3_PUBLIC_BUCKET_NAME: nuxtinator-test
+      S3_PUBLIC_BASE_URL: http://127.0.0.1:9000/nuxtinator-test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: bun install --frozen-lockfile
+      - name: Provision test database
+        run: ./scripts/setup-test-db.sh
+        env:
+          PGPASSWORD: postgres
+          TEST_DB_SUPERUSER: postgres
+      - name: Start object storage
+        run: ./scripts/setup-test-s3.sh
+      - run: bun run test
+        working-directory: dev
+
+  e2e:
+    name: E2E
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      mailpit:
+        image: axllent/mailpit:latest
+        ports:
+          - 1025:1025
+          - 8025:8025
+    env:
+      TEST_DATABASE_URL: postgresql://host_admin:test@localhost:5432/go_saas_test
+      TEST_APP_DATABASE_URL: postgresql://app_user:test@localhost:5432/go_saas_test
+      TEST_MAILHOG_URL: http://localhost:8025
+      TEST_BASE_URL: http://localhost:2090
+      S3_ENDPOINT: http://127.0.0.1:9000
+      S3_REGION: us-east-1
+      S3_ACCESS_KEY_ID: minioadmin
+      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_BUCKET_NAME: nuxtinator-test
+      S3_PUBLIC_BUCKET_NAME: nuxtinator-test
+      S3_PUBLIC_BASE_URL: http://127.0.0.1:9000/nuxtinator-test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: bun install --frozen-lockfile
+      - name: Provision test database
+        run: ./scripts/setup-test-db.sh
+        env:
+          PGPASSWORD: postgres
+          TEST_DB_SUPERUSER: postgres
+      - name: Start object storage
+        run: ./scripts/setup-test-s3.sh
+      - name: Install Playwright browsers
+        run: bunx playwright install --with-deps chromium
+        working-directory: dev
+      - run: bun run test:e2e
+        working-directory: dev
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: dev/playwright-report/
+          retention-days: 7

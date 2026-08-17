@@ -6,6 +6,7 @@
   "exports": {
     ".": "./nuxt.config.ts",
     "./kit": "./kit/alias.ts",
+    "./seeds": "./seeds/runner.ts",
     "./test-helpers": "./tests/helpers/index.ts"
   },
   "dependencies": {

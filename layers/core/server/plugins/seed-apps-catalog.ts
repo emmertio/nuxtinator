@@ -1,5 +1,6 @@
 import { db as adminDb } from '#core/server/utils/database'
 import { getRegisteredApps } from '../utils/app-registry'
+import { whenMigrationsComplete } from '#core/server/utils/migration-state'
 
 // Seeds the global `apps` catalog with one row per registered app layer.
 //
@@ -28,13 +29,27 @@ import { getRegisteredApps } from '../utils/app-registry'
 // yet) and we'd silently seed nothing. Hooking `request` with `hookOnce`
 // fires exactly once on the first incoming HTTP request — by which time
 // every plugin has finished initialising and the registry is populated.
+//
+// The `request` hook runs ahead of server middleware, so it can't rely on
+// `00.await-migrations` to have gated it; on a fresh database the `apps` table
+// would not exist yet. It waits on the same promise directly.
 export default defineNitroPlugin((nitroApp) => {
   nitroApp.hooks.hookOnce('request', async () => {
+    await whenMigrationsComplete()
+
     const apps = getRegisteredApps()
     if (apps.length === 0) return
 
     const databaseUrl = useRuntimeConfig().databaseUrl || process.env.DATABASE_URL
     if (!databaseUrl) return
+
+    // Every app is attempted before anything is reported, so one bad row can't
+    // cost the rest their catalog entry — but a failure is then raised rather
+    // than logged and forgotten. A half-seeded catalog means an app the host
+    // admin can never enable, and a warning on stdout is not a destination for
+    // that. The throw reaches Nitro's error capture, and the insert is
+    // idempotent, so a boot that gets further re-seeds the stragglers.
+    const failures: Array<{ id: string, error: unknown }> = []
 
     for (const app of apps) {
       try {
@@ -43,10 +58,20 @@ export default defineNitroPlugin((nitroApp) => {
           .values({ id: app.id, status: app.defaultStatus ?? 'available' })
           .onConflict(oc => oc.column('id').doNothing())
           .execute()
-      } catch (err) {
-        console.warn(`[seed-apps-catalog] failed to seed app "${app.id}":`, err)
+      } catch (error) {
+        failures.push({ id: app.id, error })
       }
     }
+
+    if (failures.length > 0) {
+      for (const { id, error } of failures) {
+        console.error(`[seed-apps-catalog] failed to seed app "${id}":`, error)
+      }
+      throw new Error(
+        `[seed-apps-catalog] could not seed ${failures.length} of ${apps.length} apps: ${failures.map(f => f.id).join(', ')}`
+      )
+    }
+
     console.log(`[seed-apps-catalog] ensured ${apps.length} apps in catalog: ${apps.map(a => a.id).join(', ')}`)
   })
 })

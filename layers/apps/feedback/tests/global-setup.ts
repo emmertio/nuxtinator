@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 import {
   getHostAdminDb,
+  waitForMigrations,
   closeTestDatabases,
   cleanupTenancyTestData,
   cleanupCoreTestData,
@@ -12,7 +13,7 @@ import {
   clearMailhog
 } from './helpers'
 
-const HOST_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../host')
+const HOST_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../dev')
 
 const hooks = createTest({
   rootDir: HOST_DIR,
@@ -35,6 +36,9 @@ export async function setup() {
 
   await hooks.beforeAll()
   exposeContextToEnv()
+
+  // Boot migrations run detached from the listener — hold here until they land.
+  await waitForMigrations()
 
   const sql = getHostAdminDb()
   await cleanupFeedbackTestData(sql)

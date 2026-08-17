@@ -25,12 +25,12 @@ import { fileURLToPath } from 'node:url'
 import {
   getHostAdminDb,
   cleanupCoreTestData
-} from 'layer-core/test-helpers'
-import { cleanupTenancyTestData } from 'layer-tenancy/test-helpers'
+} from '@nuxtinator/core/test-helpers'
+import { cleanupTenancyTestData } from '@nuxtinator/tenancy/test-helpers'
 import {
   cleanupListOf100TestData,
   createTestContact
-} from 'layer-list-of-100/test-helpers'
+} from '@nuxtinator/list-of-100/test-helpers'
 import { loginIntoNewOrg } from './helpers/login'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -48,9 +48,11 @@ test('add a contact via the modal; appears in the list with progress incremented
   const { org } = await loginIntoNewOrg(page, { roles: ['admin'] })
   await page.goto(`/@${org.slug}/list-of-100`)
 
-  await expect(page.getByRole('heading', { name: /list of 100/i })).toBeVisible({ timeout: 5000 })
-  // Empty-state copy.
-  await expect(page.locator('body')).toContainText(/your list is empty/i, { timeout: 5000 })
+  // First assertions after a navigation — left on the config's default, which
+  // allows for the dev server compiling the route on first visit. The table and
+  // the narrow-viewport list each render an empty state; only one is on screen.
+  await expect(page.getByRole('heading', { level: 1, name: /list of 100/i })).toBeVisible()
+  await expect(page.getByTestId('contacts-empty-state').locator('visible=true')).toBeVisible()
 
   await page.getByRole('button', { name: /add contact/i }).first().click()
 

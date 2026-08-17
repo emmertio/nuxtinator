@@ -16,14 +16,14 @@ import {
   getHostAdminDb,
   generateTestToken,
   type TestUser
-} from 'layer-core/test-helpers'
-import { addTestMembership } from 'layer-tenancy/test-helpers'
+} from '@nuxtinator/core/test-helpers'
+import { addTestMembership } from '@nuxtinator/tenancy/test-helpers'
 import {
   cleanupMessagesTestData,
   createMessagesUser,
   createTestChannel,
   createTestItem
-} from 'layer-messages/test-helpers'
+} from '@nuxtinator/messages/test-helpers'
 import { loginIntoNewOrg } from './helpers/login'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -43,7 +43,9 @@ test('compose + send a markdown message; it renders in the list without reload',
   await page.goto(`/@${org.slug}/messages/${channel.id}`)
 
   // Empty state until we post.
-  await expect(page.locator('text=No messages yet')).toBeVisible({ timeout: 5000 })
+  // First assertion after a navigation — leave it on the config's default,
+  // which allows for the dev server compiling the route on first visit.
+  await expect(page.locator('text=No messages yet')).toBeVisible()
 
   const body = `hello e2e ${randomUUID().slice(0, 6)}`
   // The composer is a custom <textarea> (not a UInput). Use its placeholder
@@ -311,13 +313,14 @@ test('notifications bell: userA @-mentions userB; B sees their unread badge incr
   }])
   await pageB.goto(`/@${org.slug}/messages`)
 
-  // Bell shows unread badge for the mention. The notifications composable
-  // fetches on mount (NotificationBell calls start() in onMounted).
-  await pageB.waitForResponse(r => r.url().includes('/api/messages/notifications') && r.status() === 200, { timeout: 5000 })
+  // Bell shows unread badge for the mention. `messages_014_drop_notifications`
+  // handed notifications back to core, so the composable now reads core's
+  // endpoints — there is no /api/messages/notifications any more.
+  await pageB.waitForResponse(r => r.url().includes('/api/notifications/unread-counts') && r.status() === 200)
 
-  // The badge element renders inside the bell button when unread > 0.
-  await expect(pageB.locator('button[aria-label="Notifications"] .badge')).toBeVisible({ timeout: 5000 })
-  await expect(pageB.locator('button[aria-label="Notifications"] .badge')).toHaveText(/[1-9]/, { timeout: 5000 })
+  // The layout renders two bells (mobile + desktop); only one is on screen.
+  const badge = pageB.getByTestId('notification-unread-count').locator('visible=true')
+  await expect(badge).toHaveText(/[1-9]/)
 
   await ctxB.close()
 })

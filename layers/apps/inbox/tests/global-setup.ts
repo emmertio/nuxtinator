@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 import {
   getHostAdminDb,
+  waitForMigrations,
   closeTestDatabases,
   cleanupInboxTestData,
   cleanupTenancyTestData,
@@ -24,7 +25,11 @@ const hooks = createTest({
   rootDir: HOST_DIR,
   server: true,
   browser: false,
-  env: { NODE_ENV: 'development' },
+  // vitest.config.ts turns the send sweep off for every project's server; this
+  // is the one that needs it. `env` reaches only THIS project's server, where
+  // `process.env` would reach every project's — see
+  // layers/apps/inbox/server/plugins/inbox-send-sweep.ts.
+  env: { NODE_ENV: 'development', NUXT_INBOX_SEND_SWEEP_ENABLED: 'true' },
   nuxtConfig: {
     vite: {
       define: {
@@ -58,6 +63,9 @@ export async function setup() {
 
   await hooks.beforeAll()
   exposeContextToEnv()
+
+  // Boot migrations run detached from the listener — hold here until they land.
+  await waitForMigrations()
 
   const admin = getHostAdminDb()
   await cleanupInboxTestData(admin)

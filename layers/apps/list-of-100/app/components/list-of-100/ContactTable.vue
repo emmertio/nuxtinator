@@ -121,7 +121,10 @@ function rowActions(contact: ListContact) {
         </template>
 
         <template #empty>
-          <div class="py-12 text-center text-(--ui-text-muted)">
+          <div
+            data-testid="contacts-empty-state"
+            class="py-12 text-center text-(--ui-text-muted)"
+          >
             Your list is empty. Click "Add contact" to begin.
           </div>
         </template>
@@ -196,6 +199,7 @@ function rowActions(contact: ListContact) {
 
       <div
         v-if="contacts.length === 0"
+        data-testid="contacts-empty-state"
         class="py-12 text-center text-(--ui-text-muted) text-sm"
       >
         Your list is empty. Tap "Add contact" to begin.

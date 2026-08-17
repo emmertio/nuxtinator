@@ -242,7 +242,7 @@ useHead({ title: 'Video Library' })
                 class="flex-1" block>
                 {{ copied === video.id ? 'Copied!' : 'Copy' }}
               </UButton>
-              <UButton @click="requestDelete(video)" color="error" variant="outline" size="sm"
+              <UButton data-testid="video-delete" @click="requestDelete(video)" color="error" variant="outline" size="sm"
                 icon="i-lucide-trash-2" class="flex-1" block>
                 Delete
               </UButton>
@@ -296,6 +296,7 @@ useHead({ title: 'Video Library' })
               Cancel
             </UButton>
             <UButton
+              data-testid="video-delete-confirm"
               color="error"
               icon="i-lucide-trash-2"
               :loading="deleting"

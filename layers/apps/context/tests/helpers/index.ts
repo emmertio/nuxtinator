@@ -16,9 +16,9 @@ import {
   createTestOrg,
   addTestMembership,
   type TestOrg
-} from 'layer-tenancy/test-helpers'
+} from '@nuxtinator/tenancy/test-helpers'
 
-export * from 'layer-tenancy/test-helpers'
+export * from '@nuxtinator/tenancy/test-helpers'
 export * from './assistant'
 
 // Users / orgs are tagged with `test-context-` so per-layer cleanup stays

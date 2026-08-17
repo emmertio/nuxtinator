@@ -7,7 +7,8 @@
     ".": "./nuxt.config.ts"
   },
   "optionalDependencies": {
-    "@nuxtinator/core": "*"
+    "@nuxtinator/core": "*",
+    "@nuxtinator/tenancy": "*"
   },
   "peerDependencies": {
     "@nuxt/kit": "^4.0.0",

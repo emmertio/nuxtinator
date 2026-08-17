@@ -7,10 +7,11 @@ import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 import {
   getHostAdminDb,
+  waitForMigrations,
   closeTestDatabases,
   cleanupTenancyTestData,
   cleanupCoreTestData
-} from 'layer-tenancy/test-helpers'
+} from '@nuxtinator/tenancy/test-helpers'
 import { cleanupAiTestData } from './helpers'
 
 const HOST_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../../../dev')
@@ -49,6 +50,9 @@ export async function setup() {
 
   await hooks.beforeAll()
   exposeContextToEnv()
+
+  // Boot migrations run detached from the listener — hold here until they land.
+  await waitForMigrations()
 
   const admin = getHostAdminDb()
   await cleanupAiTestData(admin)

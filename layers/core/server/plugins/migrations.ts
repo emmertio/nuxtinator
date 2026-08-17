@@ -3,6 +3,7 @@ import { promises as fs } from 'node:fs'
 import * as path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { createKyselyDb } from '#core/server/utils/db-connection'
+import { markMigrationsComplete, markMigrationsFailed } from '#core/server/utils/migration-state'
 
 // Migration runner. Builds its own Kysely client connecting via DATABASE_URL.
 // In single-tenant mode that's just the database. In multi-tenant mode it's
@@ -69,7 +70,14 @@ class LayeredMigrationProvider implements MigrationProvider {
   }
 }
 
-export default defineNitroPlugin(async () => {
+// The plugin runs migrations; `server/utils/migration-state.ts` owns the
+// readiness signal everything else waits on, and explains why it has to start
+// closed.
+export default defineNitroPlugin(() => {
+  runMigrations().then(markMigrationsComplete, markMigrationsFailed)
+})
+
+async function runMigrations(): Promise<void> {
   const config = useRuntimeConfig()
   const databaseUrl = config.databaseUrl || process.env.DATABASE_URL
   if (!databaseUrl) {
@@ -123,4 +131,4 @@ export default defineNitroPlugin(async () => {
   }
 
   console.log('Migrations complete')
-})
+}

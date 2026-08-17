@@ -6,6 +6,7 @@ import { $fetch } from '@nuxt/test-utils/e2e'
 import { randomUUID } from 'node:crypto'
 import {
   getHostAdminDb,
+  createTestKyselyDb,
   cleanupCrmTestData,
   createCrmOrgWith,
   withOrgHeader,
@@ -14,7 +15,6 @@ import {
 } from '../helpers'
 import { canSend } from '../../server/utils/consent'
 import { channelFingerprint } from '../../server/utils/normalize'
-import { createKyselyDb } from '../../../../core/server/utils/db-connection'
 
 const sql = getHostAdminDb()
 afterEach(async () => { await cleanupCrmTestData(sql) })
@@ -22,7 +22,7 @@ afterEach(async () => { await cleanupCrmTestData(sql) })
 // canSend is not exposed over HTTP (senders call it in-process), so it gets
 // a direct Kysely connection on the BYPASSRLS test role. The addresses used
 // are unique per test, so cross-org visibility doesn't matter here.
-const kdb = createKyselyDb<never>(process.env.TEST_DATABASE_URL!)
+const kdb = createTestKyselyDb<never>()
 type CanSendTx = Parameters<typeof canSend>[0]
 const asTx = kdb as unknown as CanSendTx
 afterAll(async () => { await kdb.destroy() })

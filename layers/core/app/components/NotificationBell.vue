@@ -46,7 +46,6 @@ async function markAllRead() {
 <template>
   <UPopover v-model:open="open" :ui="{ content: 'w-80' }">
     <UChip
-      :text="unreadCount > 99 ? '99+' : unreadCount"
       :show="unreadCount > 0"
       size="2xl"
       color="primary"
@@ -59,6 +58,13 @@ async function markAllRead() {
         size="sm"
         aria-label="Notifications"
       />
+
+      <!-- The count goes through the slot rather than the `text` prop so it can
+           carry a testid: UChip forwards attrs to the element it decorates (the
+           button), not to the badge. -->
+      <template #content>
+        <span data-testid="notification-unread-count">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+      </template>
     </UChip>
 
     <template #content>

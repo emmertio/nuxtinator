@@ -12,7 +12,7 @@
 // invokes whichever it finds.
 
 import { LAYERS } from '../layers'
-import { runSeeds } from '../../layers/core/seeds/runner'
+import { runSeeds } from '@nuxtinator/core/seeds'
 
 // Drive the seed order off the host roster (single source of truth). The runner
 // skips any layer without a seeds/index.ts, so listing every layer is safe.

@@ -20,13 +20,13 @@ import { randomUUID } from 'node:crypto'
 import { config as loadDotenv } from 'dotenv'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { getHostAdminDb } from 'layer-core/test-helpers'
-import { addTestMembership } from 'layer-tenancy/test-helpers'
+import { getHostAdminDb } from '@nuxtinator/core/test-helpers'
+import { addTestMembership } from '@nuxtinator/tenancy/test-helpers'
 import {
   cleanupVideosTestData,
   createVideosUser,
   createTestVideo
-} from 'layer-videos/test-helpers'
+} from '@nuxtinator/videos/test-helpers'
 import { loginIntoNewOrg } from './helpers/login'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -131,14 +131,13 @@ test('delete confirm wipes the card from the grid without reload', async ({ page
   const card = page.locator('.video-card').filter({ hasText: 'delete me' })
   await expect(card).toBeVisible({ timeout: 5000 })
 
-  // The library's deleteVideo() calls window.confirm() — auto-accept it.
-  page.once('dialog', dialog => dialog.accept())
+  // The card's delete button only opens a confirmation modal; the DELETE fires
+  // from the modal's own button.
+  await card.getByTestId('video-delete').click()
 
-  // The trash button is a UButton with color=error variant=outline. Scope it
-  // under our card; it's the only error-colored action.
   await Promise.all([
     page.waitForResponse(r => r.url().includes(`/api/videos/${video.id}`) && r.request().method() === 'DELETE' && r.status() === 200),
-    card.locator('button').filter({ has: page.locator('span.iconify[class*="trash-2"], [class*="lucide-trash"], svg[class*="trash"]') }).first().click()
+    page.getByTestId('video-delete-confirm').click()
   ])
 
   await expect(card).not.toBeVisible({ timeout: 5000 })
@@ -189,7 +188,7 @@ test('non-owner gets the private-video error UI when opening someone else\'s pri
   // — switch to `other`'s session via a fresh context).
   const otherCtx = await page.context().browser()!.newContext()
   const otherPage = await otherCtx.newPage()
-  const { generateTestToken } = await import('layer-core/test-helpers')
+  const { generateTestToken } = await import('@nuxtinator/core/test-helpers')
   await otherCtx.addCookies([{
     name: 'auth-token',
     value: generateTestToken(other),
